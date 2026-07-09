@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Health Care Triage</title>
+  <style>
+    :root {
+      --ink: #14213d;
+      --muted: #64748b;
+      --line: #d9e2ec;
+      --field: #f8fafc;
+      --bg: #eef4f2;
+      --green: #087f5b;
+      --red: #b42318;
+      --amber: #b54708;
+      --blue: #1d4ed8;
+      --shadow: 0 18px 42px rgba(20, 33, 61, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(135deg, rgba(8, 127, 91, 0.09), rgba(29, 78, 216, 0.07)), var(--bg);
+      min-height: 100vh;
+    }
+    button, input, textarea, select { font: inherit; }
+    .app-shell { width: min(1320px, calc(100vw - 32px)); margin: 0 auto; padding: 22px 0 28px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .mark {
+      width: 44px; height: 44px; border-radius: 8px; background: var(--green); color: white;
+      display: grid; place-items: center; font-weight: 800; flex: 0 0 auto;
+    }
+    h1 { font-size: clamp(1.6rem, 3.5vw, 2.65rem); margin: 0; letter-spacing: 0; line-height: 1.05; }
+    .subtitle { color: var(--muted); margin: 6px 0 0; max-width: 780px; }
+    .status-pill {
+      border: 1px solid var(--line); background: rgba(255, 255, 255, 0.76); border-radius: 999px;
+      padding: 8px 12px; color: var(--muted); white-space: nowrap; font-size: 0.92rem;
+    }
+    .workspace { display: grid; grid-template-columns: minmax(340px, 0.9fr) minmax(440px, 1.1fr); gap: 18px; align-items: start; }
+    .panel { background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(217, 226, 236, 0.92); border-radius: 8px; box-shadow: var(--shadow); }
+    .panel-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+    .panel-header h2 { margin: 0; font-size: 1.05rem; letter-spacing: 0; }
+    .panel-body { padding: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1.2fr 0.55fr 0.75fr; gap: 12px; }
+    .two-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    label { display: grid; gap: 6px; color: #334155; font-size: 0.9rem; font-weight: 650; }
+    input, textarea, select {
+      width: 100%; border: 1px solid #cbd5e1; border-radius: 7px; background: var(--field);
+      color: var(--ink); padding: 10px 11px; outline: none;
+    }
+    textarea { min-height: 148px; resize: vertical; line-height: 1.45; }
+    input:focus, textarea:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14); }
+    .upload { margin-top: 12px; border: 1px dashed #9fb3c8; background: #f7fbff; border-radius: 8px; padding: 12px; }
+    .upload input { padding: 8px; background: white; }
+    .photo-preview {
+      margin-top: 10px; width: 100%; max-height: 280px; object-fit: contain; border-radius: 8px;
+      border: 1px solid var(--line); background: white; display: none;
+    }
+    .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .btn { border: 1px solid transparent; border-radius: 7px; padding: 10px 13px; font-weight: 750; cursor: pointer; min-height: 42px; }
+    .btn-primary { background: var(--green); color: white; flex: 1 1 220px; }
+    .btn-secondary { background: white; color: var(--ink); border-color: var(--line); }
+    .risk-banner { border: 1px solid var(--line); border-left-width: 7px; border-radius: 8px; padding: 14px; background: white; margin-bottom: 14px; }
+    .risk-banner h3 { margin: 0 0 5px; font-size: 1.18rem; }
+    .risk-banner p { margin: 0; color: #334155; line-height: 1.45; }
+    .risk-urgent { border-left-color: var(--red); background: #fff1f0; }
+    .risk-same-day { border-left-color: var(--amber); background: #fff7e6; }
+    .risk-routine { border-left-color: var(--green); background: #e8f6ef; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .metric { border: 1px solid var(--line); border-radius: 8px; background: white; padding: 12px; min-height: 78px; }
+    .metric span { display: block; color: var(--muted); font-size: 0.78rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric strong { display: block; margin-top: 6px; font-size: 1.02rem; line-height: 1.2; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .section { border: 1px solid var(--line); border-radius: 8px; background: white; padding: 14px; }
+    .section h3 { margin: 0 0 10px; font-size: 0.98rem; }
+    ul, ol { margin: 0; padding-left: 20px; color: #334155; line-height: 1.48; }
+    li + li { margin-top: 8px; }
+    .red-list li { color: var(--red); font-weight: 650; }
+    .note {
+      white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 0.86rem; line-height: 1.45; color: #1f2937; max-height: 440px; overflow: auto;
+    }
+    .empty {
+      min-height: 380px; display: grid; place-items: center; text-align: center; color: var(--muted);
+      border: 1px dashed #a7b8ca; border-radius: 8px; background: #f8fafc; padding: 30px;
+    }
+    .safety { margin-top: 14px; color: #475569; font-size: 0.9rem; line-height: 1.45; }
+    @media (max-width: 980px) {
+      .workspace, .result-grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .status-pill { white-space: normal; }
+    }
+    @media (max-width: 620px) {
+      .app-shell { width: min(100vw - 20px, 1320px); padding-top: 12px; }
+      .form-grid, .two-grid, .metrics { grid-template-columns: 1fr; }
+      .brand { align-items: flex-start; }
+      .mark { width: 38px; height: 38px; }
+      .panel-body { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">HC</div>
+        <div>
+          <h1>AI Health Care Triage</h1>
+          <p class="subtitle">Multilingual symptom intake, red-flag screening, photo-aware notes, and PHC referral drafting for community health workers.</p>
+        </div>
+      </div>
+      <div class="status-pill" id="modeLabel">Demo mode: local triage engine</div>
+    </header>
+
+    <section class="workspace">
+      <form class="panel" id="caseForm">
+        <div class="panel-header"><h2>Patient Intake</h2></div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <label>Patient name <input id="patientName" value="Sita Devi" autocomplete="name"></label>
+            <label>Age <input id="age" type="number" min="0" max="110" value="28"></label>
+            <label>Sex <select id="sex"><option>Female</option><option>Male</option><option>Other</option></select></label>
+          </div>
+          <div class="two-grid">
+            <label>Village or area <input id="village" value="Rampur"></label>
+            <label>Input language
+              <select id="language">
+                <option>English</option><option>Hindi</option><option>Bengali</option><option>Tamil</option><option>Telugu</option>
+                <option>Marathi</option><option>Kannada</option><option>Malayalam</option><option>Gujarati</option><option>Odia</option>
+              </select>
+            </label>
+          </div>
+          <div class="two-grid">
+            <label>Vitals or observations <input id="vitals" value="Temp 102 F, pulse fast, no BP reading"></label>
+            <label>Gemini readiness
+              <select id="modelMode"><option value="local">Local demo triage</option><option value="gemini">Gemini-ready prompt path</option></select>
+            </label>
+          </div>
+          <label style="margin-top: 12px;">Symptom description
+            <textarea id="symptoms">Fever for 3 days, severe headache, vomiting, and dizziness since morning.</textarea>
+          </label>
+          <div class="upload">
+            <label>Optional photo: rash, wound, medicine strip, prescription
+              <input id="photo" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <img id="photoPreview" class="photo-preview" alt="Uploaded case photo preview">
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Run triage</button>
+            <button class="btn btn-secondary" type="button" id="loadMaternal">Load maternal danger case</button>
+            <button class="btn btn-secondary" type="button" id="resetCase">Reset</button>
+          </div>
+          <p class="safety">Clinical safety: this prototype supports community health triage workflow and referral documentation only. It does not diagnose or replace PHC assessment.</p>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="panel-header"><h2>Triage Output</h2></div>
+        <div class="panel-body" id="output">
+          <div class="empty"><div><strong>Run a case to generate triage guidance.</strong><p>The result will include risk level, red flags, clarifying questions, care worker actions, nearest PHC, and a referral note.</p></div></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const urgentTerms = new Map([["breathless",3],["difficulty breathing",3],["chest pain",3],["unconscious",4],["seizure",4],["severe bleeding",4],["pregnant",2],["reduced fetal movement",4],["blue lips",4],["stiff neck",3],["confusion",3],["dengue",2],["dehydration",2]]);
+    const moderateTerms = new Map([["fever",1],["vomiting",2],["diarrhea",2],["rash",1],["wound",2],["pus",2],["dizziness",1],["headache",1],["cough",1],["medicine",1]]);
+    const phcs = [
+      { name: "Rampur Primary Health Centre", area: "rampur", phone: "+91-80000-10001", travel: "18 min" },
+      { name: "Seva Nagar PHC", area: "seva nagar", phone: "+91-80000-10002", travel: "24 min" },
+      { name: "Block Community Health Centre", area: "default", phone: "+91-80000-10003", travel: "35 min" }
+    ];
+    const $ = (id) => document.getElementById(id);
+    $("photo").addEventListener("change", () => {
+      const file = $("photo").files[0];
+      const preview = $("photoPreview");
+      if (!file) { preview.style.display = "none"; preview.removeAttribute("src"); return; }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    });
+    $("modelMode").addEventListener("change", () => {
+      $("modeLabel").textContent = $("modelMode").value === "gemini" ? "Gemini-ready: API adapter in source project" : "Demo mode: local triage engine";
+    });
+    $("loadMaternal").addEventListener("click", () => {
+      $("patientName").value = "Meena Kumari"; $("age").value = 23; $("sex").value = "Female"; $("village").value = "Seva Nagar"; $("language").value = "Hindi";
+      $("vitals").value = "Pregnant, 8 months. BP not measured. Swelling visible.";
+      $("symptoms").value = "Severe headache, dizziness, vomiting, swelling of face and hands, reduced fetal movement since morning.";
+      runTriage();
+    });
+    $("resetCase").addEventListener("click", () => {
+      $("patientName").value = "Sita Devi"; $("age").value = 28; $("sex").value = "Female"; $("village").value = "Rampur"; $("language").value = "English";
+      $("vitals").value = "Temp 102 F, pulse fast, no BP reading";
+      $("symptoms").value = "Fever for 3 days, severe headache, vomiting, and dizziness since morning.";
+      $("photo").value = ""; $("photoPreview").style.display = "none";
+      $("output").innerHTML = `<div class="empty"><div><strong>Run a case to generate triage guidance.</strong><p>The result will include risk level, red flags, clarifying questions, care worker actions, nearest PHC, and a referral note.</p></div></div>`;
+    });
+    $("caseForm").addEventListener("submit", (event) => { event.preventDefault(); runTriage(); });
+    function runTriage() {
+      const patient = { name: $("patientName").value.trim() || "Unnamed patient", age: Number($("age").value || 0), sex: $("sex").value, village: $("village").value.trim() || "Unknown village", language: $("language").value, vitals: $("vitals").value.trim() };
+      const symptoms = $("symptoms").value.trim();
+      if (!symptoms) { alert("Please enter symptoms before running triage."); return; }
+      const photo = $("photo").files[0] || null;
+      const analysis = analyzeCase(patient, symptoms, photo);
+      const phc = nearestPhc(patient.village);
+      const referralNote = buildReferralNote(patient, symptoms, analysis, phc);
+      renderOutput(analysis, phc, referralNote);
+    }
+    function analyzeCase(patient, symptoms, photo) {
+      const text = `${symptoms} ${patient.vitals}`.toLowerCase();
+      let score = 1;
+      const redFlags = [];
+      urgentTerms.forEach((weight, term) => { if (text.includes(term)) { score += weight; redFlags.push(`Possible red flag mentioned: ${term}`); } });
+      moderateTerms.forEach((weight, term) => { if (text.includes(term)) score += weight; });
+      if (text.includes("102") || text.includes("103") || text.includes("104") || text.includes("high fever")) { score += 2; redFlags.push("High fever or sustained fever needs prompt review."); }
+      if (photo) { score += 1; redFlags.push(`Photo uploaded for PHC visual review: ${photo.name}`); }
+      score = Math.min(score, 10);
+      const priority = score >= 7 || redFlags.length >= 2 ? "Urgent escalation" : score >= 4 ? "Same-day PHC review" : "Routine guidance";
+      return { score, priority, summary: `${patient.name} has reported symptoms requiring ${priority.toLowerCase()}: ${symptoms.slice(0, 170)}`, redFlags, questions: buildQuestions(text, patient), actions: buildActions(priority), imageObservation: photo ? "Image included for PHC review." : "No image uploaded." };
+    }
+    function buildQuestions(text, patient) {
+      const questions = ["How long have the symptoms been present?", "Is the patient able to drink fluids and pass urine normally?", "Is there breathlessness, chest pain, confusion, seizure, or fainting?"];
+      if (patient.sex === "Female" && patient.age >= 12 && patient.age <= 49) questions.push("Is the patient pregnant or within 6 weeks after delivery?");
+      if (text.includes("fever")) questions.push("Has fever continued for more than 3 days or returned after medicine?");
+      if (text.includes("rash") || text.includes("wound")) questions.push("Is the rash or wound spreading, painful, hot, or producing pus?");
+      return questions;
+    }
+    function buildActions(priority) {
+      if (priority === "Urgent escalation") return ["Call the PHC or emergency transport immediately according to local protocol.", "Keep the patient accompanied and avoid giving unverified medicines.", "Carry available records, medicines, photos, and referral note."];
+      if (priority === "Same-day PHC review") return ["Arrange PHC review today and monitor for worsening symptoms.", "Encourage fluids if safe and document temperature or other observations.", "Escalate immediately if any red-flag answer is yes."];
+      return ["Provide routine counselling per local community health protocol.", "Advise follow-up if symptoms persist, worsen, or a red flag appears.", "Record the case and share details at the next health review."];
+    }
+    function nearestPhc(village) {
+      const lower = village.toLowerCase();
+      return phcs.find((phc) => phc.area !== "default" && lower.includes(phc.area)) || phcs[phcs.length - 1];
+    }
+    function buildReferralNote(patient, symptoms, analysis, phc) {
+      const now = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+      const redFlags = analysis.redFlags.length ? analysis.redFlags : ["None recorded from current intake."];
+      return ["AI HEALTH CARE REFERRAL NOTE", `Date/time: ${now}`, "", `Patient: ${patient.name} | Age: ${patient.age} | Sex: ${patient.sex}`, `Village/area: ${patient.village} | Language: ${patient.language}`, `Vitals/observations: ${patient.vitals || "Not recorded"}`, "", `Triage priority: ${analysis.priority} | Risk score: ${analysis.score}/10`, `Summary: ${analysis.summary}`, `Image note: ${analysis.imageObservation}`, "", "Symptoms reported:", symptoms, "", "Red flags / concerns:", ...redFlags.map((flag) => `- ${flag}`), "", "Questions to confirm at PHC:", ...analysis.questions.map((question) => `- ${question}`), "", "Referred to:", `${phc.name} (${phc.travel})`, `Phone: ${phc.phone}`, "", "Note: AI-assisted triage support only. Clinical assessment by PHC staff required."].join("\n");
+    }
+    function renderOutput(analysis, phc, referralNote) {
+      const riskClass = analysis.priority === "Urgent escalation" ? "risk-urgent" : analysis.priority === "Same-day PHC review" ? "risk-same-day" : "risk-routine";
+      $("output").innerHTML = `
+        <div class="risk-banner ${riskClass}"><h3>${analysis.priority}</h3><p>${escapeHtml(analysis.summary)}</p></div>
+        <div class="metrics">
+          <div class="metric"><span>Risk score</span><strong>${analysis.score}/10</strong></div>
+          <div class="metric"><span>Nearest PHC</span><strong>${escapeHtml(phc.name)}</strong></div>
+          <div class="metric"><span>Travel estimate</span><strong>${escapeHtml(phc.travel)}</strong></div>
+          <div class="metric"><span>Mode</span><strong>${$("modelMode").value === "gemini" ? "Gemini-ready" : "Local demo"}</strong></div>
+        </div>
+        <div class="result-grid">
+          <div class="section"><h3>Clarifying questions</h3><ol>${analysis.questions.map((question) => `<li>${escapeHtml(question)}</li>`).join("")}</ol></div>
+          <div class="section"><h3>Red flags</h3>${analysis.redFlags.length ? `<ul class="red-list">${analysis.redFlags.map((flag) => `<li>${escapeHtml(flag)}</li>`).join("")}</ul>` : `<p>No immediate red flags detected from the current description.</p>`}</div>
+          <div class="section"><h3>Recommended care worker action</h3><ul>${analysis.actions.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ul></div>
+          <div class="section"><h3>Referral note</h3><div class="note" id="referralNote">${escapeHtml(referralNote)}</div><div class="actions"><button class="btn btn-primary" type="button" id="downloadNote">Download note</button><button class="btn btn-secondary" type="button" id="copyNote">Copy note</button></div></div>
+        </div>`;
+      $("downloadNote").addEventListener("click", () => downloadText("ai_health_care_referral_note.txt", referralNote));
+      $("copyNote").addEventListener("click", async () => { await navigator.clipboard.writeText(referralNote); $("copyNote").textContent = "Copied"; setTimeout(() => $("copyNote").textContent = "Copy note", 1200); });
+    }
+    function downloadText(fileName, text) {
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    function escapeHtml(value) {
+      return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
