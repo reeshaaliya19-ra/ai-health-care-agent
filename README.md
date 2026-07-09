@@ -1,4 +1,4 @@
-# ai-health-care-agent
+# AI Health Care Triage Agent
 Gemini-powered Rural Health AI agent for community health workers 
 AI Health Care Triage Agent
 Rural Health AI Agent for community health workers, built with Gemini, Google ADK, MCP tools, and Streamlit.
